@@ -1,0 +1,4 @@
+maps.siasky.net {
+    tls devs@siasky.net
+    reverse_proxy openmaptiles:80
+}

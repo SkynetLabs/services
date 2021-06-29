@@ -1,0 +1,91 @@
+version: "3.7"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+networks:
+  shared:
+    driver: bridge
+
+services:
+  caddy:
+    image: caddy:2.4.3
+    container_name: caddy
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - shared
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - openmaptiles
+
+  openmaptiles:
+    image: klokantech/openmaptiles-server
+    container_name: openmaptiles
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - ./openmaptiles/data:/data
+    networks:
+      - shared
+    expose:
+      - 80
+
+  mongo:
+    image: mongo:4.4.1
+    container_name: mongo
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - ./mongo/db:/data/db
+    networks:
+      - shared
+
+  scraper:
+    image: skynetlabs/content-record-scraper
+    container_name: content-record-scraper
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      - CR_DATA_DOMAIN=crqa.hns
+      - DEBUG_ENABLED=false
+      - MONGO_CONNECTION_STRING=mongodb://${MONGO_DB_USER}:${MONGO_DB_PASS}@mongo:27017
+      - SCRAPERAPI_PORT=5000
+    networks:
+      - shared
+    expose:
+      - 5000
+    depends_on:
+      - mongo
+
+  leaderboard-api:
+    image: skynetlabs/leaderboard-api
+    container_name: leaderboard-api
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      - DEBUG_ENABLED=false
+      - MONGO_CONNECTION_STRING=mongodb://${MONGO_DB_USER}:${MONGO_DB_PASS}@mongo:27017
+      - SCRAPERAPI_URL=http://scraper
+      - SCRAPERAPI_PORT=5000
+      - LEADERBOARDAPI_PORT=4000
+    networks:
+      - shared
+    expose:
+      - 4000
+    depends_on:
+      - mongo
+      - scraper
