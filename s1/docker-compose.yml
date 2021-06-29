@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     volumes:
-      - ./mongo/data:/bitnami/mongodb
+      - ./mongo/data:/data/db
     networks:
       - shared
 
